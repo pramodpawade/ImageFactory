@@ -1,4 +1,4 @@
-title 'Connecity Stream - MQTT Middleware Validation'
+title 'MQTT Middleware Validation'
 
 control 'Check java package' do
   impact 1.0
