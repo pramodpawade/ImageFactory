@@ -1,0 +1,155 @@
+---
+#Ansible Role for Docker 1.13 version hardening steps with comments, reference numbers to CIS hardening document
+
+#Create a separate partition for containers - Reference no 1.1
+    - name: 1.1 Create a separate partition for containers
+      command: "grep /var/lib/docker /etc/fstab"
+      register: res
+      failed_when: res.rc == 1
+
+    - name: Ansible check file exists example.
+      stat:
+        path: /etc/fstab
+      register: fstab_file
+    - debug:
+        msg: "/etc/fstab exists"
+      when: fstab_file.stat.exists
+
+#Only allow trusted users to control Docker daemon - Reference no 1.4
+    - name: Only allow trusted users to control Docker daemon
+      command: getent group docker
+      register: res
+      failed_when: res.rc == 1
+
+#Audit docker daemon - Reference no 1.5
+    - name: Audit docker daemon
+      lineinfile: dest=/etc/audit/audit.rules line="-w /usr/bin/docker -k docker"
+
+#Audit Docker files and directories - /var/lib/docker - Reference no 1.6
+    - name: Audit Docker files and directories - /var/lib/docker
+      lineinfile: dest=/etc/audit/audit.rules line="-w /var/lib/docker -k docker"
+
+#Audit Docker files and directories - /etc/docker - Reference no 1.7
+    - name: Audit Docker files and directories - /etc/docker
+      lineinfile: dest=/etc/audit/audit.rules line="-w /etc/docker -k docker"
+
+#Audit Docker files and directories - docker.service - Reference no 1.8
+    - name: Audit Docker files and directories - docker.service
+      lineinfile: dest=/etc/audit/audit.rules line="-w /usr/lib/systemd/system/docker.service -k docker"
+
+#Audit Docker files and directories - docker.socket - Reference no 1.9
+    - name: Audit Docker files and directories - docker.socket
+      lineinfile: dest=/etc/audit/audit.rules line="-w /usr/lib/systemd/system/docker.socket -k docker"
+
+#Audit Docker files and directories - /etc/default/docker - Reference no 1.10
+    - name: Audit Docker files and directories - /etc/default/docker
+      lineinfile: dest=/etc/audit/audit.rules line="-w /etc/default/docker -k docker"
+
+#Audit Docker files and directories - /etc/docker/daemon.json  - Reference no 1.11
+    - name: Audit Docker files and directories - /etc/docker/daemon.json
+      lineinfile: dest=/etc/audit/audit.rules line="-w /etc/docker/daemon.json -k docker"
+
+#Audit Docker files and directories - /usr/bin/docker-containerd  - Reference no 1.12
+    - name: Audit Docker files and directories - /usr/bin/docker-containerd
+      lineinfile: dest=/etc/audit/audit.rules line="-w /usr/bin/docker-containerd -k docker"
+
+#Audit Docker files and directories - /usr/bin/docker-runc  - Reference no 1.13
+    - name: Audit Docker files and directories - /usr/bin/docker-runc
+      lineinfile: dest=/etc/audit/audit.rules line="-w /usr/bin/docker-runc -k docker"
+
+#Restarting auditd service
+    - name: restart auditd service
+      service: name=auditd state=restarted enabled=yes
+
+#Verify that docker.service file ownership is set to root:root and permission is 644- Reference no 3.1 & 3.2
+    - name: Verify that docker.service file ownership is set to root:root and Permission is 644
+      file:
+        path: /lib/systemd/system/docker.service
+        owner: root
+        group: root
+        mode: 0644
+
+#Verify that docker.socket file ownership is set to root:root and permission is 644- Reference no 3.3 & 3.4
+    - name: Verify that docker.socket file ownership is set to root:root and permission is 644
+      file:
+        path: /lib/systemd/system/docker.socket
+        owner: root
+        group: root
+        mode: 0644
+
+#Verify that /etc/docker directory ownership is set to root:root and permission is 755 - Reference no 3.5 & 3.6
+    - name: Verify that /etc/docker directory ownership is set to root:root and permission is 755
+      file:
+        path: /etc/docker
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+
+#Verify that Docker socket file ownership is set to root:docker and permission is 660 - Reference no 3.15 & 3.16
+    - name: Verify that Docker socket file ownership is set to root:docker and permission is 660
+      file:
+        path: /var/run/docker.sock
+        owner: root
+        group: docker
+        mode: 0660
+
+#Verify that /etc/default/docker file ownership is set to root:root and permission is 644 - Reference no 3.19 & 3.20
+    - name: Verify that /etc/default/docker file ownership is set to root:root and permission is 644
+      file:
+        path: /etc/default/docker
+        owner: root
+        group: root
+        mode: 0644
+
+#Docker daemon configuration - Reference no 2
+    - name: Docker daemon configuration
+      replace:
+        path: /lib/systemd/system/docker.service
+        regexp: '^ExecStart.*'
+        replace: 'ExecStart=/usr/bin/dockerd -H fd:// --log-level=info --icc=false --iptables=true --disable-legacy-registry --userland-proxy=false --live-restore'
+        backup: yes
+
+#Reloading docker daemon service
+    - name: Reloading the docker daemon service
+      shell: systemctl daemon-reload
+
+#Restarting docker service
+    - name: Restarting docker service
+      shell: /etc/init.d/docker restart
+
+#Set the logging level - Reference no 2.2
+    - name: Set the logging level
+      shell: ps -ef | grep dockerd | grep 'log-level=info'
+      register: res
+      failed_when: res.rc == 1
+
+#Restrict network traffic between containers - Reference no 2.1
+    - name: Restrict network traffic between containers
+      shell: ps -ef | grep dockerd | grep 'icc=false'
+      register: res
+      failed_when: res.rc == 1
+
+#Allow Docker to make changes to iptables - Reference no 2.3
+    - name: Allow Docker to make changes to iptables
+      shell: ps -ef | grep dockerd | grep 'iptables=true'
+      register: res
+      failed_when: res.rc == 1
+
+#Disable operations on legacy registry (v1) - Reference no 2.13
+    - name: Disable operations on legacy registry
+      shell: ps -ef | grep dockerd | grep 'disable-legacy-registry'
+      register: res
+      failed_when: res.rc == 1
+
+#Disable Userland Proxy - Reference no 2.18
+    - name: Disable Userland Proxy
+      shell: ps -ef | grep dockerd | grep 'userland-proxy=false'
+      register: res
+      failed_when: res.rc == 1
+
+#Enable live restore - Reference no 2.14
+    - name: Enable live restore
+      shell: ps -ef | grep dockerd | grep 'live-restore'
+      register: res
+      failed_when: res.rc == 1

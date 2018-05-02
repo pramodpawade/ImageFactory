@@ -1,0 +1,26 @@
+---
+#Ansible Role for installing MQTT components with necessary comments
+   
+#Install JAVA JDK package
+- name: Install JAVA JDK package
+  apt:
+   name: openjdk-8-jdk
+   state: present
+   
+#Install unzip package
+- name: Install unzip package
+  apt:
+   name: unzip
+   state: present 
+   
+#Unarchive hivemq zip file copied from bitbucket
+- name: Unarchive hivemq zip file copied from bitbucket
+  unarchive:
+    src: /tmp/hivemq-3.3.1.zip
+    dest: /home/ubuntu/
+  
+#Remove unwanted hivemq zip file  
+- name: Clean hivemq installer in /tmp
+  file:
+   path: /tmp/hivemq-3.3.1.zip
+   state: absent

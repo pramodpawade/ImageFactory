@@ -1,0 +1,448 @@
+---
+#Ansible Role to perform Ubuntu 16.04 version OS hardening steps with comments, reference numbers to CIS hardening document
+  
+#Create a warning banner for VW Group IT system for unauthorized users - Reference no 1.7.1.1
+  - name: creates motd file in /etc
+    copy:
+      dest: /etc/motd
+      mode: 0644
+      owner: root
+      group: root
+      content: "|======================================================================= '\n'
+      --------------------------------- Warning ------------------------------------- '\n'
+      ===============This is a monitored confidential Volkswagen Group IT System '\n'
+      ===============================================================================|"
+
+  - name: Copy warning banner in /etc/issue
+    lineinfile:
+      dest: /etc/issue
+      create: yes
+      state: present
+      insertafter: EOF
+      line: "WARNING : Unauthorized access to this system is forbidden and will be '\n'
+      prosecuted by law. By accessing this system, you agree that your actions '\n'
+      may be monitored if unauthorized usage is suspected"
+      mode: 0644
+      owner: root
+      group: root
+
+  - name: configure login banner in /etc/issue.net
+    lineinfile:
+      dest: /etc/issue.net
+      create: yes
+      state: present
+      insertafter: EOF
+      line: "WARNING : Unauthorized access to this system is forbidden and will be '\n'
+      prosecuted by law. By accessing this system, you agree that your actions
+      may be monitored if unauthorized usage is suspected"
+      mode: 0644
+      owner: root
+      group: root
+
+# Enable Banner in /etc/ssh/sshd_config
+  - name: Enabling banner in /etc/ssh/sshd_config file
+    lineinfile:
+      dest: /etc/ssh/sshd_config
+      state: present
+      insertafter: "#Banner /etc/issue.net"
+      line: Banner /etc/issue.net
+
+# Security Patch Updates
+  - name: Install Security patch upgrades
+    package: name=unattended-upgrades state=present
+
+# Update latest version of packages
+  - name: Run the equivalent of "apt-get update" as a separate step
+    apt:
+      update_cache: yes
+
+# OS Hardening start with the current date
+  - name: Starting the OS hardening
+    debug: var=ansible_date_time.date
+
+# Restarting sshd service
+  - name: restart sshd service
+    service: name=sshd state=restarted enabled=yes
+
+#Disable unwanted file-systems - Reference no 1.1.1
+  - name: Disable unwanted file-systems - Reference no 1.1.1
+    file:
+       path: /etc/modprobe.d/CIS.conf
+       owner: ubuntu
+       group: ubuntu
+       mode: 0664
+       state: touch
+
+  - name: disable crams filesystem
+    lineinfile: dest=/etc/modprobe.d/CIS.conf line="install cramfs /bin/false"
+
+  - name: disable freevxfs filesystem
+    lineinfile: dest=/etc/modprobe.d/CIS.conf line="install freevxfs /bin/false"
+    
+  - name: disable jffs2 filesystem
+    lineinfile: dest=/etc/modprobe.d/CIS.conf line="install jffs2 /bin/false"
+    
+  - name: disable hfs filesystem
+    lineinfile: dest=/etc/modprobe.d/CIS.conf line="install hfs /bin/false"
+    
+  - name: disable hfsplus filesystem
+    lineinfile: dest=/etc/modprobe.d/CIS.conf line="install hfsplus /bin/false"
+    
+  - name: disable squashfs filesystem
+    lineinfile: dest=/etc/modprobe.d/CIS.conf line="install squashfs /bin/false"
+    
+  - name: disable udf  filesystem
+    lineinfile: dest=/etc/modprobe.d/CIS.conf line="install udf /bin/false"
+    
+  - name: disable vfat filesystem
+    lineinfile: dest=/etc/modprobe.d/CIS.conf line="install vfat /bin/true"    
+
+#Ensure sticky bit is set on all world-writable directories like /tmp - Reference no 1.1.20
+  - name: Ensure sticky bit is set on all world-writable directories
+    shell: df --local -P | awk {'if (NR!=1) print $6'} | xargs -I '{}' find '{}' -xdev -type d -perm -0002 2>/dev/null | chmod a+t /tmp
+
+#Ensure permissions on bootloader config are configured - Reference no 1.4.1
+  - name: Ensure permissions on bootloader config are configured - Reference no 1.4.1
+    file:
+        path: /boot/grub/grub.cfg
+        owner: root
+        group: root
+        mode: 0600
+
+#Ensure prelink is disabled which can interfere with the operation of AIDE - Reference no 1.5.4
+  - name: prelink is disabled which can interfere with the operation of AIDE and
+    command: apt list --installed prelink
+    register: prelink_check
+
+  - name: disable prelink
+    command: prelink -ua
+    when: prelink_check.stdout.find == 0
+
+#Remove prelink if installed
+  - name: check if it is installed prelink
+    command: apt list --installed prelink
+    register: prelink_check
+
+  - name: disable prelink
+    command: apt remove prelink
+    when: prelink_check.stdout.find == 0
+
+
+#Ensure permissions on /etc/issue are configured - Reference no 1.7.1.5
+  - name: Permissions on /etc/issue are configured
+    file:
+        path: /etc/issue
+        owner: root
+        group: root
+        mode: 0644
+
+#Ensure service clients are not installed - NIS,rsh,talk,tenlnet,LDAP - Reference no 2.1
+  - name: Ensure service clients are not installed
+    apt:
+      name:
+         - nis
+         - rsh-client
+         - rsh-redone-client
+         - talk
+         - telnet
+         - ldap-utils
+      state: absent
+
+#Ensure auditd package is installed - Reference no 4.1
+  - name: Ensure auditd package is installed
+    apt:
+     name: auditd
+     state: present
+
+#Ensure auditd service is running
+  - name: Ensure auditd service is running
+    systemd: name=auditd state=started
+
+#copying the config file of audit for backup purpose
+  - synchronize:
+      src: /etc/audit/auditd.conf
+      dest: /root/script/
+      recursive: yes
+      
+  - lineinfile:
+      path: /etc/audit/auditd.conf
+      regexp: 'max_log_file_action'
+      line: 'max_log_file_action = KEEP_LOGS'
+
+#Ensure events that modify date and time information are collected via auditd - Reference no 4.1.4
+  - name: modify date and time information are collected via auditd
+    lineinfile: dest=/etc/audit/audit.rules line="-a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time-change"
+  - lineinfile: dest=/etc/audit/audit.rules line="-a always,exit -F arch=b32 -S adjtimex -S settimeofday -S stime -k time-change"
+  - lineinfile: dest=/etc/audit/audit.rules line="-a always,exit -F arch=b64 -S clock_settime -k time-change"  
+  - lineinfile: dest=/etc/audit/audit.rules line="-a always,exit -F arch=b32 -S clock_settime -k time-change"  
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /etc/localtime -p wa -k time-change"
+
+#Ensure events that modify user/group information are collected via auditd - Reference no 4.1.5
+  - name: modify user/group information are collected via auditd
+    lineinfile: dest=/etc/audit/audit.rules line="-w /etc/group -p wa -k identity"
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /etc/passwd -p wa -k identity"  
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /etc/gshadow -p wa -k identity"    
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /etc/shadow -p wa -k identity"      
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /etc/security/opasswd -p wa -k identity"        
+
+# Ensure events that modify the system's network environment are collected via auditd - Reference no 4.1.6
+  - name: modify the system's network environment are collected via auditd
+    lineinfile: dest=/etc/audit/audit.rules line="-a always,exit -F arch=b64 -S sethostname -S setdomainname -k system-locale" 
+  - lineinfile: dest=/etc/audit/audit.rules line="-a always,exit -F arch=b32 -S sethostname -S setdomainname -k system-locale"  
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /etc/issue -p wa -k system-locale"
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /etc/issue.net -p wa -k system-locale"    
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /etc/hosts -p wa -k system-locale"    
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /etc/network -p wa -k system-locale"   
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /etc/networks -p wa -k system-locale"   
+
+#Ensure login and logout events are collected via auditd - Reference no 4.1.8
+  - name: login and logout events are collected via auditd
+    lineinfile: dest=/etc/audit/audit.rules line="-w /var/log/faillog -p wa -k logins" 
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /var/log/lastlog -p wa -k logins"     
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /var/log/tallylog -p wa -k logins"     
+
+#Ensure session initiation information is collected via auditd - Reference no 4.1.9
+  - name: session initiation information is collected via auditd
+    lineinfile: dest=/etc/audit/audit.rules line="-w /var/run/utmp -p wa -k session" 
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /var/log/wtmp -p wa -k session"
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /var/log/btmp -p wa -k session"       
+
+#Ensure unsuccessful unauthorized file access attempts are collected via auditd - Reference no 4.1.11
+  - name: unsuccessful unauthorized file access attempts are collected via auditd
+    lineinfile: dest=/etc/audit/audit.rules line="-a always,exit -F arch=b64 -S creat -S open -S openat -S truncate -S ftruncate -F exit=-EACCES -F auid>=1000 -F auid!=4294967295 -k access" 
+  - lineinfile: dest=/etc/audit/audit.rules line="-a always,exit -F arch=b32 -S creat -S open -S openat -S truncate -S ftruncate -F exit=-EACCES -F auid>=1000 -F auid!=4294967295 -k access"
+  - lineinfile: dest=/etc/audit/audit.rules line="-a always,exit -F arch=b64 -S creat -S open -S openat -S truncate -S ftruncate -F exit=-EPERM -F auid>=1000 -F auid!=4294967295 -k access"
+  - lineinfile: dest=/etc/audit/audit.rules line="-a always,exit -F arch=b32 -S creat -S open -S openat -S truncate -S ftruncate -F exit=-EPERM -F auid>=1000 -F auid!=4294967295 -k access"  
+
+#Ensure successful file system mounts are collected via auditd - Reference no 4.1.13
+  - name: successful file system mounts are collected via auditd
+    lineinfile: dest=/etc/audit/audit.rules line="-a always,exit -F arch=b64 -S mount -F auid>=1000 -F auid!=4294967295 -k mounts" 
+  - lineinfile: dest=/etc/audit/audit.rules line="-a always,exit -F arch=b32 -S mount -F auid>=1000 -F auid!=4294967295 -k mounts" 
+
+#Ensure file deletion events by users are collected via auditd - Reference no 4.1.14
+  - name: file deletion events by users are collected via auditd
+    lineinfile: dest=/etc/audit/audit.rules line="-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid>=1000 -F auid!=4294967295 -k delete" 
+  - lineinfile: dest=/etc/audit/audit.rules line="-a always,exit -F arch=b32 -S unlink -S unlinkat -S rename -S renameat -F auid>=1000 -F auid!=4294967295 -k delete"
+
+#Ensure changes to system administration scope (sudoers) is collected via auditd - Reference no 4.1.15
+  - name: changes to system administration scope (sudoers) is collected via auditd
+    lineinfile: dest=/etc/audit/audit.rules line="-w /etc/sudoers -p wa -k scope" 
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /etc/sudoers.d -p wa -k scope"
+
+#Ensure system administrator actions (sudolog) are collected via auditd(provided su should be disabled) - Reference no 4.1.16
+  - name: system administrator actions (sudolog) are collected via auditd(provided su should be disabled)
+    lineinfile: dest=/etc/audit/audit.rules line="-w /var/log/sudo.log -p wa -k actions"
+
+#Ensure kernel module loading and unloading is collected via auditd - Reference no 4.1.17
+  - name: kernel module loading and unloading is collected via auditd
+    lineinfile: dest=/etc/audit/audit.rules line="-w /sbin/insmod -p x -k modules" 
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /sbin/rmmod -p x -k modules"
+  - lineinfile: dest=/etc/audit/audit.rules line="-w /sbin/modprobe -p x -k modules"
+  - lineinfile: dest=/etc/audit/audit.rules line="-a always,exit arch=b64 -S init_module -S delete_module -k modules"
+
+#reload auditd to refresh the config - Reference no 4.1
+  - name: Restart audit service
+    service:
+       name: auditd
+       state: reloaded
+
+# Ensure rsyslog Service is enabled - Reference no 4.2.1.1
+  - name: rsyslog Service is enabled
+    systemd:
+       name: rsyslog
+       enabled: yes
+
+# Ensure permissions on all logfiles are configured - Reference no 4.2.4
+  - name: Set  permissions on all logfiles are configured
+    file:
+      path: /var/log/
+      mode: "g-wx,o-rwx"
+      recurse: yes
+
+# Ensure cron daemon is enabled - Reference no 5.1.1
+  - name: cron daemon is enabled
+    shell: echo "Locking down Cron"
+
+  - name: create a file
+    file:
+        path: /etc/cron.allow
+        state: touch
+        mode: 0600
+
+  - name: write root in /etc/cron.allow
+    lineinfile: dest=/etc/cron.allow line="root"    
+
+# Enable cron service
+  - name: enabling cron service
+    service:
+        name: cron
+        state: started
+
+#Ensure permissions on /etc/ssh/sshd_config are configured - Reference no 5.2.1
+  - name: permissions on /etc/ssh/sshd_config are configured
+    file:
+      path: /etc/ssh/sshd_config
+      group: root
+      owner: root
+      mode: "og-rwx"
+
+#copying the config file for backup purpose
+  - name: copy sshd config file for backup purpose
+    synchronize:
+      src: /etc/ssh/sshd_config
+      dest: /root/script/
+      recursive: yes
+
+#Ensure SSH Protocol is set to 2 - Reference no 5.2.2
+  - name: SSH Protocol is set to 2
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: 'Protocol'
+      line: 'Protocol  2'
+
+#Ensure SSH LogLevel is set to INFO - Reference no 5.2.3
+  - name: SSH LogLevel is set to INFO
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: 'LogLevel'
+      line: 'LogLevel INFO'
+
+#Ensure SSH X11 forwarding is disabled - Reference no 5.2.4
+  - name: SSH X11 forwarding is disabled
+    lineinfile:
+       path:  /etc/ssh/sshd_config
+       regexp: 'X11Forwarding'
+       line: 'X11Forwarding no'
+
+#Ensure SSH MaxAuthTries is set to 4 or less - Reference no 5.2.5
+  - name: SSH MaxAuthTries is set to 4 or less
+    lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: 'MaxAuthTries'
+        line: 'MaxAuthTries 4'
+
+#Ensure SSH Idle Timeout Interval is configured - Reference no 5.2.12
+  - name: SSH Idle Timeout Interval is configured
+    lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: 'ClientAliveInterval'
+        line: 'ClientAliveInterval 300'
+
+  - name: SSH Idle Count Max is configured
+    lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: 'ClientAliveCountMax'
+        line: 'ClientAliveCountMax 10'
+
+#Ensure SSH PermitEmptyPasswords is disabled - Reference no 5.2.9
+  - name: SSH PermitEmptyPasswords is disabled
+    lineinfile:
+           path: /etc/ssh/sshd_config
+           regexp: 'PermitEmptyPasswords'
+           line: 'PermitEmptyPasswords no'
+
+#Ensure SSH LoginGraceTime is set to one minute or less - Reference no 5.2.13
+  - name: SSH LoginGraceTime is set to one minute or less
+    lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: 'LoginGraceTime'
+        line: 'LoginGraceTime 60'
+
+#Ensure SSH PermitRootLogin is set to no - Reference no 5.2.8
+  - name: SSH PermitRootLogin is set to no
+    replace:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin.*'
+        replace: 'PermitRootLogin no'
+        backup: yes
+
+# Restart sshd service
+  - name: Restarting sshd service
+    service:
+         name: sshd
+         state: restarted
+
+#copying the config file for backup purpose
+  - name: copying the /etc/login.defs config file for backup purpose
+    synchronize:
+       src: /etc/login.defs
+       dest: /root/script/
+       recursive: yes
+
+#Ensure permissions on /etc/passwd are configured - Reference no 6.1.2
+  - name: permissions on /etc/passwd are configured
+    file:
+       path: /etc/passwd
+       owner: root
+       group: root
+       mode: 0644
+
+#Ensure permissions on /etc/shadow are configured - Reference no 6.1.3
+  - name: permissions on /etc/shadow are configured
+    file:
+       path: /etc/shadow
+       owner: root
+       group: shadow
+       mode: "o-rwx,g-wx"
+
+#Ensure permissions on /etc/group are configured - Reference no 6.1.4
+  - name:  permissions on /etc/group are configured
+    file:
+       path: /etc/group
+       owner: root
+       group: root
+       mode: 0644
+
+#Ensure permissions on /etc/gshadow are configured - Reference no 6.1.5
+  - name: permissions on /etc/gshadow are configured
+    file:
+        path: /etc/gshadow
+        owner: root
+        group: shadow
+        mode: "o-rwx,g-rw"
+
+#Ensure permissions on /etc/passwd- are configured - Reference no 6.1.6
+  - name: permissions on /etc/passwd- are configured
+    file:
+        path: /etc/passwd-
+        owner: root
+        group: root
+        mode: 0600
+
+#Fix vulnerabilites in base ubuntu image listed by AWS Inspector
+  - name: Update packages
+    shell: add-apt-repository ppa:git-core/ppa -y
+  - shell: apt-get update -y
+  - shell: apt-get install git -y
+  - shell: apt-get install --only-upgrade curl -y
+  - shell: apt-get install --only-upgrade libssl* -y
+  - shell: apt-get install --only-upgrade libicu55* -y
+
+#Update MAN package
+  - name: Download latest MAN package
+    get_url:
+      url: https://launchpad.net/ubuntu/+source/man-db/2.7.6.1-2/+build/11560486/+files/man-db_2.7.6.1-2_amd64.deb
+      dest: /tmp/
+  
+  - name: Install downloaded MAN package in previous step
+    apt:
+      deb: /tmp/man-db_2.7.6.1-2_amd64.deb
+
+#Update CRON package
+  - name: Download latest CRON package
+    get_url:
+      url: https://launchpad.net/ubuntu/+source/cron/3.0pl1-128ubuntu5/+build/13273775/+files/cron_3.0pl1-128ubuntu5_amd64.deb
+      dest: /tmp/
+  
+  - name: Install downloaded CRON package in previous step
+    apt:
+      deb: /tmp/cron_3.0pl1-128ubuntu5_amd64.deb
+
+#Clean unwanted packages/dependancies in the server cache
+  - name: Remove useless packages from the cache
+    apt:
+      autoclean: yes
+
+  - name: Remove dependencies that are no longer required
+    apt:
+      autoremove: yes

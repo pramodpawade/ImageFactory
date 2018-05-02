@@ -1,0 +1,6 @@
+name: VM_Image_Factory_Testing_Framework
+summary: Testing framework to perform testing on the resulting images from image build pipeline
+version: 1.0.0
+supports:
+  - os-name: ubuntu
+    release: 16.04

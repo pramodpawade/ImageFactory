@@ -1,0 +1,81 @@
+{
+  "variables": {
+    "vpc_id": "{{env `vpc_id`}}",
+    "subnet_id": "{{env `subnet_id`}}",
+    "access_key": "{{env `aws_access_key`}}",
+    "secret_key": "{{env `aws_secret_key`}}",
+    "ami_name": "{{env `ami_name`}}_{{isotime \"02-Jan-06 03_04_05\"}}",
+    "ami_description": "{{env `ami_name`}} Golden Image - CIS level 1 hardened and Inspec tested",
+    "region": "{{env `region`}}",
+    "instance_type": "{{env `instance_type`}}",
+    "bamboo_server_ip": "{{env `bamboo_server_ip`}}",
+    "os_type": "{{env `os_type`}}"
+  },
+  "builders": [
+    {
+      "name": "vm_image_factory_ubuntu",
+      "type": "amazon-ebs",
+      "access_key": "{{user `access_key`}}",
+      "secret_key": "{{user `secret_key`}}",
+      "ami_name": "{{user `ami_name` | clean_ami_name}}",
+      "instance_type": "{{user `instance_type`}}",
+      "region": "{{user `region`}}",
+      "source_ami_filter": {
+        "filters": {
+          "virtualization-type": "hvm",
+          "name": "ubuntu/images/hvm-ssd/ubuntu-xenial-*",
+          "root-device-type": "ebs"
+        },
+        "owners": "099720109477",
+        "most_recent": true
+      },
+      "ssh_username": "ubuntu",
+      "vpc_id": "{{ user `vpc_id` }}",
+      "subnet_id": "{{user `subnet_id`}}",
+      "temporary_security_group_source_cidr": "{{user `bamboo_server_ip`}}",
+      "associate_public_ip_address": "0",
+      "ami_description": "{{user `ami_description`}}",
+      "tags": {
+        "Name": "{{user `ami_name` | clean_ami_name}}",
+        "Owner": "VM_ImageFactory",
+        "CreatedDate": "{{isotime \"2006-01-02\"}}"
+      },
+      "run_tags": {
+        "Name": "{{user `ami_name` | clean_ami_name}}",
+        "Owner": "VM_ImageFactory",
+        "InspectorScan": "true"
+      },
+      "run_volume_tags": {
+        "Name": "{{user `ami_name` | clean_ami_name}}"
+      },
+      "snapshot_tags": {
+        "Name": "{{user `ami_name` | clean_ami_name}}"
+      }
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "sudo apt-get update",
+        "sudo apt-get install --assume-yes python-pip python-dev build-essential",
+        "sudo pip install --upgrade --no-deps pip"
+      ]
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo pip install ansible"
+      ]
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "./aws/{{user `os_type`}}/build/ansible/main.yml",
+      "playbook_dir": "./aws/{{user `os_type`}}/build/ansible/",
+      "extra_arguments": [
+        "--extra-vars",
+        "-vvv"
+      ]
+    }
+  ]
+}

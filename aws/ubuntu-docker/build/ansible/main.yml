@@ -1,0 +1,22 @@
+---
+#"Docker 1.13 version hardening steps with comments, reference numbers to CIS hardening document"
+- name : "Docker Patching and Hardening for systemd"
+  hosts: localhost
+  become: yes
+  become_method: sudo
+  gather_facts: false
+  tasks:
+    - name: Run Ubuntu role to apply hardening in base ubuntu OS
+      include_role:
+         name: ubuntu
+         tasks_from: ubuntu_hardening
+        
+    - name: Apply ansible role to install AWS Inspector agent
+      include_role:
+         name: ubuntu
+         tasks_from: install_awsinspector
+
+    - name: Run Docker role to apply docker hardening in base ubuntu hardened OS
+      include_role:
+         name: docker
+         tasks_from: docker_hardening

@@ -1,0 +1,84 @@
+---
+#Ansible Role for installing GSB components with necessary comments
+      
+#Install nginx package
+- name: Install nginx package
+  apt:
+   name: nginx
+   state: present
+
+#Create ssl directory if it doesn't exist
+- file:
+   path: /etc/nginx/ssl
+   state: directory
+   mode: 0755
+
+#Ensure permissions on nginx config are configured
+- name: Ensure permissions on nginx config are configured
+  file:
+    path: /etc/nginx/
+    owner: root
+    group: root
+    mode: 0755
+     
+#Get vault client
+- name: Get vault client version 0.9.5
+  get_url:
+   url: https://releases.hashicorp.com/vault/0.9.5/vault_0.9.5_linux_amd64.zip
+   dest: /tmp/
+   mode: 0755
+
+#Install unzip package
+- name: Install unzip package
+  apt:
+   name: unzip
+   state: present
+   
+#Unarchive vault client downloaded in previous step
+- name: Unarchive vault client downloaded in previous step
+  unarchive:
+    src: /tmp/vault_0.9.5_linux_amd64.zip
+    dest: /tmp/
+   
+#Install vault client
+- name: Install the vault client  
+  shell: mv /tmp/vault /usr/local/bin/
+- shell: vault -autocomplete-install  
+
+#Remove unwanted vault installer  
+- name: Remove unwanted vault installer  
+  file:
+   path: /tmp/vault_0.9.5_linux_amd64.zip
+   state: absent
+
+#Get filebeat client version 6.2.2
+- name: Get filebeat client version 6.2.2
+  get_url:
+   url: https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-6.2.2-amd64.deb
+   dest: /tmp/
+   mode: 0755
+
+#Install filebeat client debian package version 6.2.2   
+- name: Install filebeat client debian package version 6.2.2
+  apt:
+   deb: /tmp/filebeat-6.2.2-amd64.deb
+
+#Remove unwanted filebeat installer  
+- name: Remove unwanted filebeat installer  
+  file:
+   path: /tmp/filebeat-6.2.2-amd64.deb
+   state: absent
+   
+#Enable filebeat service
+- name: Enable filebeat service
+  service:
+   name: filebeat
+   state: started
+   enabled: yes
+   
+#Enable nginx service
+- name: Enable nginx service
+  service:
+   name: nginx
+   state: started
+   enabled: yes

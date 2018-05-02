@@ -1,0 +1,22 @@
+---
+#"Installing GSB Proxy Compoents with Ubuntu base image hardening steps with comments, reference numbers to CIS hardening document"
+- name : "Installing GSB Proxy Compoents with Ubuntu base image hardening"
+  hosts: localhost
+  become: yes
+  become_method: sudo
+  gather_facts: false
+  tasks:
+    - name: Apply ansible role to implement hardening in base ubuntu OS leveraging CIS benchmarks
+      include_role:
+         name: ubuntu
+         tasks_from: ubuntu_hardening
+
+    - name: Apply ansible role to install AWS Inspector agent
+      include_role:
+         name: ubuntu
+         tasks_from: install_awsinspector
+
+    - name: Apply ansible role to install GSB components in Ubuntu hardened OS
+      include_role:
+         name: gsb
+         tasks_from: install_gsb_components

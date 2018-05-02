@@ -1,0 +1,22 @@
+---
+#Ansible Role for installing AWS Inspector agent
+
+#Download awsinspector agent in the local path
+- name: Download awsinspector agent in the local path
+  get_url:
+    url: https://d1wk0tztpsntt1.cloudfront.net/linux/latest/install
+    dest: /home/ubuntu/
+
+#Install awsinspector agent
+- name: Install awsinspector agent
+  shell: bash /home/ubuntu/install
+
+#Check if awsinspector agent status is running 
+- name: Check if awsinspector agent status is running
+  shell: /opt/aws/awsagent/bin/awsagent status
+
+#Remove awsinspector installer   
+- name: Remove awsinspector installer
+  file:
+    path: /home/ubuntu/install
+    state: absent
