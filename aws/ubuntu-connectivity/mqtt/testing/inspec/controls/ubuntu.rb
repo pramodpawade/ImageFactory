@@ -18,7 +18,7 @@ control 'motd-02' do
   title 'client: Check for motd banner in /etc/motd .'
   desc 'Make sure motd banner is created in the machine'
   describe file ('/etc/motd') do
-    its('content') { should match '\W*This is a monitored confidential Volkswagen Group IT System\W*'}
+    its('content') { should match '\W*This is a monitored confidential of My Ditch System\W*'}
   end
 end
 
