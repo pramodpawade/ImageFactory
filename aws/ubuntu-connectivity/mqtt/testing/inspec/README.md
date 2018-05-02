@@ -7,14 +7,14 @@ InSpec detects violations and displays findings in the form of a report, but put
 ##Standalone usage
 
 In this module , we have created a inspec profile for Ubuntu Operating System as it differs according to the underlying operating sytem flavour.
-Here the inspec profile will check the Ubuntu OS configuration parameters with Volkswagen Connectity stream middleware componets and will display the test summary.
+Here the inspec profile will check the Ubuntu OS configuration parameters with middleware componets and will display the test summary.
 Please find the below command to execute the Ubuntu based Inspec validation profile
 inspec exec profile name
 
 ##Contributors
 
-Volkswagen - VM and Image Factory Stream
+Pramod Pawade
 
 ##License
 
-Volkswagen Group IT
+Pramod Pawade
