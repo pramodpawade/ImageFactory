@@ -1,4 +1,4 @@
-title 'Connecity Stream - GSB Middleware Validation'
+title 'GSB Middleware Validation'
 
 control 'Check nginx service' do
   impact 1.0
