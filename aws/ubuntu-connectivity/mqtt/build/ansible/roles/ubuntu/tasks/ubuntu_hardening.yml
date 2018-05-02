@@ -1,7 +1,7 @@
 ---
 #Ansible Role to perform Ubuntu 16.04 version OS hardening steps with comments, reference numbers to CIS hardening document
   
-#Create a warning banner for VW Group IT system for unauthorized users - Reference no 1.7.1.1
+#Create a warning banner for Respective Project Name for unauthorized users - Reference no 1.7.1.1
   - name: creates motd file in /etc
     copy:
       dest: /etc/motd
@@ -10,7 +10,7 @@
       group: root
       content: "|======================================================================= '\n'
       --------------------------------- Warning ------------------------------------- '\n'
-      ===============This is a monitored confidential Volkswagen Group IT System '\n'
+      ===============This is a monitored confidential of My Ditch System '\n'
       ===============================================================================|"
 
   - name: Copy warning banner in /etc/issue
