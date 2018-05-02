@@ -10,7 +10,7 @@
       group: root
       content: "|======================================================================= '\n'
       --------------------------------- Warning ------------------------------------- '\n'
-      ===============This is a monitored confidential My Ditch Bank System '\n'
+      ===============This is a monitored confidential of My Ditch Bank System '\n'
       ===============================================================================|"
 
   - name: Copy warning banner in /etc/issue
