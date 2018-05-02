@@ -2,14 +2,14 @@
   resource "aws_security_group" "VM_Image_Factory_Inspec_Validation_SG" {
   name        = "VM_Image_Factory_Inspec_Validation_SG"
   description = "Enable SSH access via port 22"
-  vpc_id      = "${var.vw_vpc_id}"
+  vpc_id      = "${var.vm_vpc_id}"
 
 #Inbound access from bamboo server
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["${var.vw_sg_source_cidr}"]
+    cidr_blocks = ["${var.vm_sg_source_cidr}"]
   }
 
 #Outbound access
@@ -28,8 +28,8 @@
 resource "aws_instance" "VM_Image_Factory_Inspec_Validation" {
   ami = "${var.packer_ami_id}"
   associate_public_ip_address = "false"
-  instance_type = "${var.vw_insttype}"
-  subnet_id = "${var.vw_subnetid}"
+  instance_type = "${var.vm_insttype}"
+  subnet_id = "${var.vm_subnetid}"
   vpc_security_group_ids = ["${aws_security_group.VM_Image_Factory_Inspec_Validation_SG.id}"]
   tags {
       Name = "VM_Image_Factory_Inspec_Validation"
