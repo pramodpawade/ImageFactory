@@ -1,6 +1,6 @@
 ---
-#"Installing MQTT HiveMQ Compoents with Ubuntu base image hardening steps with comments, reference numbers to CIS hardening document"
-- name : "Installing MQTT HiveMQ Compoents with Ubuntu base image hardening"
+#"Ubuntu base image hardening steps with comments and reference numbers to CIS hardening document"
+- name : "Ubuntu base image hardening steps with comments and CIS reference number"
   hosts: localhost
   become: yes
   become_method: sudo
